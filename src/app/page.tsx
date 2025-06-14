@@ -15,7 +15,6 @@ interface WidgetItem {
 const initialItems: WidgetItem[] = [
   { i: 'ovx', symbol: 'FRED:OVXCLS' },
   { i: 'gvz', symbol: 'FRED:GVZCLS' },
-  { i: 'vvix', symbol: 'TVC:VVIX' },
   { i: 'skew', symbol: 'NASDAQ:SDEX' },
 ];
 
@@ -41,22 +40,45 @@ const saveToLS = (key: string, value: any) => {
   }
 };
 
-const generateDefaultLayouts = (items: { i: string }[]): Layouts => {
+const breakpoints = { lg: 1200, md: 1000, sm: 760, xs: 480, xxs: 0 };
+const cols = { lg: 60, md: 50, sm: 38, xs: 24, xxs: 16 };
+
+const generateDefaultLayouts = (items: WidgetItem[]): Layouts => {
   const layouts: Layouts = {};
-  layouts.lg = items.map((item, index) => ({
-    i: item.i,
-    x: (index % 2) * 6,
-    y: Math.floor(index / 2) * 4,
-    w: 6,
-    h: 4,
-  }));
+  const h = 20; // 400px height / 20px rowHeight
+
+  for (const bp in breakpoints) {
+    const key = bp as keyof typeof breakpoints;
+    const bpCols = cols[key];
+    layouts[key] = items.map((item, index) => {
+      if (key === 'lg' || key === 'md' || key === 'sm') {
+        // 2 columns layout
+        return {
+          i: item.i,
+          x: (index % 2) * Math.floor(bpCols / 2),
+          y: Math.floor(index / 2) * h,
+          w: Math.floor(bpCols / 2),
+          h: h,
+        };
+      } else {
+        // 1 column layout
+        return {
+          i: item.i,
+          x: 0,
+          y: index * h,
+          w: bpCols,
+          h: h,
+        };
+      }
+    });
+  }
   return layouts;
 };
 
 export default function Home() {
   const items = initialItems;
   const [layouts, setLayouts] = useState<Layouts>(() => {
-    const savedLayouts = getFromLS('layouts');
+    const savedLayouts = getFromLS('layouts-v2');
     if (savedLayouts) {
       // Reconcile layouts with current items from code
       const currentItemIds = new Set(items.map((item) => item.i));
@@ -69,19 +91,21 @@ export default function Home() {
   });
 
   const onLayoutChange = (layout: Layout[], allLayouts: Layouts) => {
-    saveToLS('layouts', allLayouts);
+    saveToLS('layouts-v2', allLayouts);
     setLayouts(allLayouts);
   };
 
   return (
-    <div className="p-4 bg-gray-900 min-h-screen">
+    <div className="bg-gray-900 min-h-screen dot-grid">
       <ResponsiveGridLayout
         className="layout"
         layouts={layouts}
         onLayoutChange={onLayoutChange}
-        breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
-        cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
-        rowHeight={100}
+        breakpoints={breakpoints}
+        cols={cols}
+        rowHeight={20}
+        margin={[0, 0]}
+        containerPadding={[20, 20]}
         isDraggable
         isResizable
         draggableHandle=".drag-handle"
