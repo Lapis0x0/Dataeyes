@@ -37,7 +37,7 @@ const getFromLS = (key: string) => {
   return undefined;
 };
 
-const saveToLS = (key: string, value: any) => {
+const saveToLS = (key: string, value: unknown) => {
   if (typeof window !== 'undefined') {
     try {
       localStorage.setItem(`dataeyes-dashboard-${key}`, JSON.stringify(value));
