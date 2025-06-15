@@ -1,16 +1,10 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Responsive, WidthProvider } from 'react-grid-layout';
 import type { Layout, Layouts } from 'react-grid-layout';
 import TradingViewWidget from '@/components/TradingViewWidget';
-import { Button } from '@/components/ui/button';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
-import { Menu, Plus, Layout as LayoutIcon, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { Sidebar } from '@/components/Sidebar';
 import type { Tab as SidebarTab } from '@/components/Sidebar';
 import {
