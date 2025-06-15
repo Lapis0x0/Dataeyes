@@ -140,7 +140,7 @@ const DashboardGrid = ({
 
   return (
     <ResponsiveGridLayout
-      className="layout"
+      className="layout h-full dot-grid p-4"
       layouts={tab.layouts}
       onLayoutChange={onLayoutChange}
       breakpoints={breakpoints}
@@ -286,8 +286,8 @@ export default function Home() {
   const currentTab = tabs.find((t) => t.id === activeTab);
 
   return (
-    <div className="bg-gray-900 min-h-screen">
-      <PanelGroup direction="horizontal" className="h-screen">
+    <div className="bg-[#161A1E] h-screen flex flex-col">
+      <PanelGroup direction="horizontal" className="flex-grow">
         <Panel defaultSize={20} minSize={5} maxSize={30} collapsible>
           <Sidebar
             tabs={tabs}
@@ -296,39 +296,19 @@ export default function Home() {
             onAddTab={onAddTab}
             onRemoveTab={onRemoveTab}
             onRenameTab={onRenameTab}
+            onAddWidget={onAddWidget}
+            onResetDashboard={resetDashboard}
           />
         </Panel>
-        <PanelResizeHandle className="w-1 bg-gray-700/50 hover:bg-gray-600 transition-colors" />
+        <PanelResizeHandle className="w-px bg-[#22252A] hover:bg-[#F0B90B] transition-colors" />
         <Panel>
-          <main className="flex-1 dot-grid p-4 h-full overflow-y-auto">
+          <main className="h-full overflow-y-auto dot-grid p-4">
             {isMounted && currentTab && (
               <DashboardGrid tab={currentTab} onUpdate={handleTabUpdate} />
             )}
           </main>
         </Panel>
       </PanelGroup>
-
-      <div className="fixed bottom-4 right-4 z-50">
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" size="icon">
-              <Menu className="h-4 w-4" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-56">
-            <div className="grid gap-4">
-              <Button variant="ghost" onClick={onAddWidget}>
-                <Plus className="mr-2 h-4 w-4" />
-                添加组件
-              </Button>
-              <Button variant="ghost" onClick={resetDashboard}>
-                <LayoutIcon className="mr-2 h-4 w-4" />
-                重置当前分区
-              </Button>
-            </div>
-          </PopoverContent>
-        </Popover>
-      </div>
     </div>
   );
 }

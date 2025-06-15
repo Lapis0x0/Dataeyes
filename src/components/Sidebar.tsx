@@ -10,7 +10,12 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Plus, Settings, Trash2 } from 'lucide-react';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Plus, Settings, Trash2, MoreHorizontal, Layout as LayoutIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export interface Tab {
@@ -25,6 +30,8 @@ interface SidebarProps {
   onAddTab: () => void;
   onRemoveTab: (tabId: string) => void;
   onRenameTab: (tabId: string, newName: string) => void;
+  onAddWidget: () => void;
+  onResetDashboard: () => void;
 }
 
 export function Sidebar({
@@ -34,6 +41,8 @@ export function Sidebar({
   onAddTab,
   onRemoveTab,
   onRenameTab,
+  onAddWidget,
+  onResetDashboard,
 }: SidebarProps) {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [editingTab, setEditingTab] = useState<Tab | null>(null);
@@ -63,38 +72,60 @@ export function Sidebar({
 
   return (
     <>
-      <div className="bg-gray-900/70 backdrop-blur-sm border-r border-gray-700/50 flex flex-col h-full">
-        <div className="p-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-white">分区</h2>
+      <div className="bg-[#161A1E] border-r border-[#22252A] flex flex-col h-full">
+        <div className="p-4 flex items-center h-16 shrink-0">
+          <h2 className="text-lg font-semibold text-[#EAECEF] truncate">Dashboards</h2>
         </div>
-        <div className="flex-grow p-2 overflow-y-auto">
+        <div className="flex-grow px-2 overflow-y-auto">
           {tabs.map((tab) => (
             <Button
               key={tab.id}
-              variant={activeTab === tab.id ? 'secondary' : 'ghost'}
-              className="w-full justify-start mb-2 group"
+              variant="ghost"
+              className={cn(
+                'w-full justify-start mb-1 group h-10 px-3 text-[#707A8A] hover:bg-[rgba(234,236,239,0.04)] hover:text-[#EAECEF] rounded-lg',
+                activeTab === tab.id && 'bg-[rgba(234,236,239,0.08)] text-[#EAECEF]'
+              )}
               onClick={() => onTabChange(tab.id)}
             >
-              <span className="truncate flex-grow text-left">{tab.name}</span>
+              <span className="truncate flex-grow text-left font-medium">{tab.name}</span>
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6 ml-auto opacity-0 group-hover:opacity-100 flex-shrink-0"
+                className="h-7 w-7 ml-auto opacity-0 group-hover:opacity-100 flex-shrink-0 hover:bg-[rgba(234,236,239,0.06)]"
                 onClick={(e) => {
                   e.stopPropagation();
                   openSettings(tab);
                 }}
               >
-                <Settings className="h-4 w-4" />
+                <Settings size={16} />
               </Button>
             </Button>
           ))}
         </div>
-        <div className="p-4 border-t border-gray-700/50">
-          <Button variant="outline" className="w-full" onClick={onAddTab}>
-            <Plus className="h-4 w-4 mr-2" />
-            添加分区
+        <div className="p-2 border-t border-[#22252A] shrink-0 flex items-center">
+          <Button variant="ghost" className="flex-grow justify-start text-[#707A8A] hover:text-[#EAECEF] h-10 px-3" onClick={onAddTab}>
+            <Plus size={16} className="mr-3" />
+            <span className="font-medium">添加分区</span>
           </Button>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-10 w-10 text-[#707A8A] hover:text-[#EAECEF]">
+                <MoreHorizontal size={16} />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-56 bg-[#161A1E] border-[#22252A] text-white mb-2">
+              <div className="grid gap-1">
+                <Button variant="ghost" onClick={onAddWidget} className="justify-start hover:bg-[rgba(234,236,239,0.06)]">
+                  <Plus className="mr-2 h-4 w-4" />
+                  添加组件
+                </Button>
+                <Button variant="ghost" onClick={onResetDashboard} className="justify-start hover:bg-[rgba(234,236,239,0.06)]">
+                  <LayoutIcon className="mr-2 h-4 w-4" />
+                  重置当前分区
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
 
