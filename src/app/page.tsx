@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Responsive, WidthProvider } from 'react-grid-layout';
 import type { Layout, Layouts } from 'react-grid-layout';
 import TradingViewWidget from '@/components/TradingViewWidget';
@@ -11,6 +11,13 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Menu, Plus, Layout as LayoutIcon, X } from 'lucide-react';
+import { Sidebar } from '@/components/Sidebar';
+import type { Tab as SidebarTab } from '@/components/Sidebar';
+import {
+  Panel,
+  PanelGroup,
+  PanelResizeHandle,
+} from 'react-resizable-panels';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -19,10 +26,39 @@ interface WidgetItem {
   symbol: string;
 }
 
-const initialItems: WidgetItem[] = [
-  { i: 'ovx', symbol: 'FRED:OVXCLS' },
-  { i: 'gvz', symbol: 'FRED:GVZCLS' },
-  { i: 'skew', symbol: 'NASDAQ:SDEX' },
+interface Tab extends SidebarTab {
+  items: WidgetItem[];
+  layouts: Layouts;
+}
+
+const initialTabs: Tab[] = [
+  {
+    id: 'crypto',
+    name: '加密货币',
+    items: [
+      { i: 'btc', symbol: 'BINANCE:BTCUSDT' },
+      { i: 'eth', symbol: 'BINANCE:ETHUSDT' },
+      { i: 'sol', symbol: 'BINANCE:SOLUSDT' },
+    ],
+    layouts: {},
+  },
+  {
+    id: 'stocks',
+    name: '股票',
+    items: [
+      { i: 'aapl', symbol: 'NASDAQ:AAPL' },
+      { i: 'tsla', symbol: 'NASDAQ:TSLA' },
+    ],
+    layouts: {},
+  },
+  {
+    id: 'forex',
+    name: '外汇',
+    items: [
+      { i: 'eurusd', symbol: 'FX:EURUSD' },
+    ],
+    layouts: {},
+  },
 ];
 
 const getFromLS = (key: string) => {
@@ -80,43 +116,97 @@ const generateDefaultLayouts = (items: WidgetItem[]): Layouts => {
   return layouts;
 };
 
+const DashboardGrid = ({
+  tab,
+  onUpdate,
+}: {
+  tab: Tab;
+  onUpdate: (updatedTab: Tab) => void;
+}) => {
+  const onLayoutChange = (_: Layout[], allLayouts: Layouts) => {
+    onUpdate({ ...tab, layouts: allLayouts });
+  };
+
+  const onRemoveWidget = (widgetId: string) => {
+    const newItems = tab.items.filter((item) => item.i !== widgetId);
+    const newLayouts = { ...tab.layouts };
+    for (const bp in newLayouts) {
+      newLayouts[bp] = newLayouts[bp].filter(
+        (layout) => layout.i !== widgetId
+      );
+    }
+    onUpdate({ ...tab, items: newItems, layouts: newLayouts });
+  };
+
+  return (
+    <ResponsiveGridLayout
+      className="layout"
+      layouts={tab.layouts}
+      onLayoutChange={onLayoutChange}
+      breakpoints={breakpoints}
+      cols={cols}
+      rowHeight={20}
+      margin={[10, 10]}
+      containerPadding={[0, 0]}
+      isDraggable
+      isResizable
+      draggableHandle=".drag-handle"
+    >
+      {tab.items.map((item) => (
+        <div
+          key={item.i}
+          className="bg-gray-800/50 rounded-lg overflow-hidden flex flex-col border-2 border-gray-700/50"
+        >
+          <div className="drag-handle p-2 cursor-move flex justify-end items-center border-b border-gray-700/50">
+            <button
+              onMouseDown={(e) => {
+                e.stopPropagation();
+                onRemoveWidget(item.i);
+              }}
+              className="p-1 rounded-full text-gray-500 hover:text-white hover:bg-gray-700"
+              aria-label="Remove widget"
+            >
+              <X size={16} />
+            </button>
+          </div>
+          <div className="flex-grow h-full">
+            <TradingViewWidget symbol={item.symbol} />
+          </div>
+        </div>
+      ))}
+    </ResponsiveGridLayout>
+  );
+};
+
 export default function Home() {
-  const [items, setItems] = useState<WidgetItem[]>(initialItems);
-  const [layouts, setLayouts] = useState<Layouts>(generateDefaultLayouts(initialItems));
+  const [tabs, setTabs] = useState<Tab[]>([]);
+  const [activeTab, setActiveTab] = useState<string>('');
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
-    const savedItems = getFromLS('items');
-    const itemsToUse = savedItems || initialItems;
-    setItems(itemsToUse);
-
-    const savedLayouts = getFromLS('layouts-v2');
-    if (savedLayouts) {
-      const currentItemIds = new Set(itemsToUse.map((item: WidgetItem) => item.i));
-      Object.keys(savedLayouts).forEach(breakpoint => {
-        savedLayouts[breakpoint] = savedLayouts[breakpoint].filter((layout: Layout) => currentItemIds.has(layout.i));
-      });
-      setLayouts(savedLayouts);
+    const savedTabs = getFromLS('tabs');
+    if (savedTabs && savedTabs.length > 0) {
+      setTabs(savedTabs);
+      setActiveTab(savedTabs[0].id);
     } else {
-      setLayouts(generateDefaultLayouts(itemsToUse));
+      const tabsWithLayouts = initialTabs.map(tab => ({
+        ...tab,
+        layouts: generateDefaultLayouts(tab.items),
+      }));
+      setTabs(tabsWithLayouts);
+      setActiveTab(tabsWithLayouts[0].id);
     }
-    
     setIsMounted(true);
   }, []);
 
-  const onLayoutChange = (layout: Layout[], allLayouts: Layouts) => {
+  useEffect(() => {
     if (isMounted) {
-      saveToLS('layouts-v2', allLayouts);
-      setLayouts(allLayouts);
+      saveToLS('tabs', tabs);
     }
-  };
+  }, [tabs, isMounted]);
 
-  const resetDashboard = () => {
-    setItems(initialItems);
-    saveToLS('items', initialItems);
-    const defaultLayouts = generateDefaultLayouts(initialItems);
-    setLayouts(defaultLayouts);
-    saveToLS('layouts-v2', defaultLayouts);
+  const handleTabUpdate = (updatedTab: Tab) => {
+    setTabs(tabs.map((t) => (t.id === updatedTab.id ? updatedTab : t)));
   };
 
   const onAddWidget = () => {
@@ -125,41 +215,99 @@ export default function Home() {
       i: `new-${Date.now()}`,
       symbol: defaultSymbol,
     };
-    const newItems = [...items, newItem];
-    setItems(newItems);
-    saveToLS('items', newItems);
-    const newLayouts = { ...layouts };
+    const activeTabIndex = tabs.findIndex(t => t.id === activeTab);
+    if (activeTabIndex === -1) return;
+
+    const newTabs = [...tabs];
+    const currentTab = newTabs[activeTabIndex];
+    const newItems = [...currentTab.items, newItem];
+    
+    const newLayouts = { ...currentTab.layouts };
     for (const bp in breakpoints) {
       const key = bp as keyof typeof breakpoints;
       const bpCols = cols[key];
       const h = 20;
       const newLayoutItem = {
         i: newItem.i,
-        x: (items.length % 2) * Math.floor(bpCols / 2),
+        x: (currentTab.items.length % 2) * Math.floor(bpCols / 2),
         y: Infinity,
         w: Math.floor(bpCols / 2),
         h: h,
       };
       newLayouts[key] = [...(newLayouts[key] || []), newLayoutItem];
     }
-    setLayouts(newLayouts);
-    saveToLS('layouts-v2', newLayouts);
+    
+    newTabs[activeTabIndex] = { ...currentTab, items: newItems, layouts: newLayouts };
+    setTabs(newTabs);
   };
 
-  const onRemoveWidget = (widgetId: string) => {
-    const newItems = items.filter((item) => item.i !== widgetId);
-    setItems(newItems);
-    saveToLS('items', newItems);
-    const newLayouts = { ...layouts };
-    for (const bp in newLayouts) {
-      newLayouts[bp] = newLayouts[bp].filter((layout) => layout.i !== widgetId);
-    }
-    setLayouts(newLayouts);
-    saveToLS('layouts-v2', newLayouts);
+  const resetDashboard = () => {
+    const activeTabIndex = tabs.findIndex(t => t.id === activeTab);
+    if (activeTabIndex === -1) return;
+
+    const newTabs = [...tabs];
+    const currentTab = newTabs[activeTabIndex];
+    const initialTab = initialTabs.find(t => t.id === currentTab.id) || initialTabs[0];
+    
+    newTabs[activeTabIndex] = {
+      ...currentTab,
+      items: initialTab.items,
+      layouts: generateDefaultLayouts(initialTab.items),
+    };
+    setTabs(newTabs);
   };
+
+  const onAddTab = () => {
+    const newId = `tab-${Date.now()}`;
+    const newTab: Tab = {
+      id: newId,
+      name: `新分区 ${tabs.length + 1}`,
+      items: [],
+      layouts: generateDefaultLayouts([]),
+    };
+    setTabs([...tabs, newTab]);
+    setActiveTab(newId);
+  };
+
+  const onRemoveTab = (tabId: string) => {
+    const newTabs = tabs.filter(t => t.id !== tabId);
+    setTabs(newTabs);
+    if (activeTab === tabId && newTabs.length > 0) {
+      setActiveTab(newTabs[0].id);
+    } else if (newTabs.length === 0) {
+      setActiveTab('');
+    }
+  };
+
+  const onRenameTab = (tabId: string, newName: string) => {
+    setTabs(tabs.map(t => t.id === tabId ? { ...t, name: newName } : t));
+  };
+
+  const currentTab = tabs.find((t) => t.id === activeTab);
 
   return (
-    <div className="bg-gray-900 min-h-screen dot-grid p-4">
+    <div className="bg-gray-900 min-h-screen">
+      <PanelGroup direction="horizontal" className="h-screen">
+        <Panel defaultSize={20} minSize={5} maxSize={30} collapsible>
+          <Sidebar
+            tabs={tabs}
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            onAddTab={onAddTab}
+            onRemoveTab={onRemoveTab}
+            onRenameTab={onRenameTab}
+          />
+        </Panel>
+        <PanelResizeHandle className="w-1 bg-gray-700/50 hover:bg-gray-600 transition-colors" />
+        <Panel>
+          <main className="flex-1 dot-grid p-4 h-full overflow-y-auto">
+            {isMounted && currentTab && (
+              <DashboardGrid tab={currentTab} onUpdate={handleTabUpdate} />
+            )}
+          </main>
+        </Panel>
+      </PanelGroup>
+
       <div className="fixed bottom-4 right-4 z-50">
         <Popover>
           <PopoverTrigger asChild>
@@ -171,55 +319,16 @@ export default function Home() {
             <div className="grid gap-4">
               <Button variant="ghost" onClick={onAddWidget}>
                 <Plus className="mr-2 h-4 w-4" />
-                Add Widget
+                添加组件
               </Button>
               <Button variant="ghost" onClick={resetDashboard}>
                 <LayoutIcon className="mr-2 h-4 w-4" />
-                Reset Dashboard
+                重置当前分区
               </Button>
             </div>
           </PopoverContent>
         </Popover>
       </div>
-
-      {isMounted ? (
-        <ResponsiveGridLayout
-          className="layout"
-          layouts={layouts}
-          onLayoutChange={onLayoutChange}
-          breakpoints={breakpoints}
-          cols={cols}
-          rowHeight={20}
-          margin={[10, 10]}
-          containerPadding={[0, 0]}
-          isDraggable
-          isResizable
-          draggableHandle=".drag-handle"
-        >
-          {items.map((item) => (
-            <div
-              key={item.i}
-              className="bg-gray-800/50 rounded-lg overflow-hidden flex flex-col border-2 border-gray-700/50"
-            >
-              <div className="drag-handle p-2 cursor-move flex justify-end items-center border-b border-gray-700/50">
-                <button
-                  onMouseDown={(e) => {
-                    e.stopPropagation();
-                    onRemoveWidget(item.i);
-                  }}
-                  className="p-1 rounded-full text-gray-500 hover:text-white hover:bg-gray-700"
-                  aria-label="Remove widget"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-              <div className="flex-grow h-full">
-                <TradingViewWidget symbol={item.symbol} />
-              </div>
-            </div>
-          ))}
-        </ResponsiveGridLayout>
-      ) : null}
     </div>
   );
 }
